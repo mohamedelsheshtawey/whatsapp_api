@@ -1,0 +1,64 @@
+services:
+
+   db:
+      image: postgres:15
+      container_name: postgres_db
+      restart: always
+      environment:
+         POSTGRES_DB: ${POSTGRES_DB}
+         POSTGRES_USER: ${POSTGRES_USER}
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ports:
+         - "5432:5432"   # optional: expose only if you need host access
+      volumes:
+         - postgres_data:/var/lib/postgresql/data
+      networks:
+         - shared_network
+
+   redis:
+      image: redis:latest
+      container_name: redis
+      command: >
+         redis-server --port 6379 --appendonly yes
+      volumes:
+         - redis_data:/data
+      networks:
+         - shared_network
+
+   api:
+      container_name: evolution_api
+      image: atendai/evolution-api:v1.8.7
+      restart: always
+      env_file:
+         - .env
+      volumes:
+         - evolution_instances:/evolution/instances
+         - ./ui-dist:/usr/share/nginx/html:ro
+      depends_on:
+         - db
+         - redis
+      networks:
+         - shared_network
+   nginx:
+    container_name: nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    env_file:
+      - .env
+    depends_on:
+      - api
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+      - static_data:/static/
+    networks:
+      -  shared_network
+networks:
+   shared_network:
+volumes:
+   postgres_data:
+   redis_data:
+   evolution_instances:
+   static_data:
